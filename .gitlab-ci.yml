@@ -19,20 +19,15 @@ fmt:
 # Build Docker image
 build:
     stage: build
-    image: moby/buildkit:rootless
-    variables:
-        BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+    image: docker:24
+    services:
+        - docker:24-dind
     before_script:
-        - mkdir -p ~/.docker
-        - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > ~/.docker/config.json
+        - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     script:
-        - |
-            buildctl-daemonless.sh build \
-              --frontend dockerfile.v0 \
-              --local context=. \
-              --local dockerfile=. \
-              --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,push=true \
-              --output type=image,name=$CI_REGISTRY_IMAGE:latest,push=true
+        - docker build --pull -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA -t $CI_REGISTRY_IMAGE:latest .
+        - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+        - docker push $CI_REGISTRY_IMAGE:latest
     only:
         - main
         - tags
