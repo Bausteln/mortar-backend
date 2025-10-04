@@ -39,15 +39,31 @@ func (s *Server) handleProxyRules(w http.ResponseWriter, r *http.Request) {
 	path := strings.Trim(r.URL.Path, "/")
 	parts := strings.Split(path, "/")
 
-	// /api/proxyrules -> list all
+	// /api/proxyrules
 	if len(parts) == 2 && parts[1] == "proxyrules" {
-		s.proxyRulesHandler.GetProxyRules(w, r)
+		switch r.Method {
+		case http.MethodGet:
+			s.proxyRulesHandler.GetProxyRules(w, r)
+		case http.MethodPost:
+			s.proxyRulesHandler.CreateProxyRule(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 		return
 	}
 
-	// /api/proxyrules/{name} -> get specific
+	// /api/proxyrules/{name}
 	if len(parts) == 3 && parts[1] == "proxyrules" {
-		s.proxyRulesHandler.GetProxyRule(w, r)
+		switch r.Method {
+		case http.MethodGet:
+			s.proxyRulesHandler.GetProxyRule(w, r)
+		case http.MethodPut:
+			s.proxyRulesHandler.UpdateProxyRule(w, r)
+		case http.MethodDelete:
+			s.proxyRulesHandler.DeleteProxyRule(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 		return
 	}
 
