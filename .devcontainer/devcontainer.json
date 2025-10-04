@@ -1,5 +1,5 @@
 {
-  "name": "Bausteln K8s Learning",
+  "name": "Mortar Backend",
   "build": {
     "dockerfile": "./Dockerfile",
     "mounts": [

@@ -1,0 +1,3 @@
+[submodule "crossplane"]
+	path = crossplane
+	url = git@gitlab.bausteln.ch:net-core/kubernetes-projects/crossplane.git
