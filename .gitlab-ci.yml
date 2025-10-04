@@ -1,6 +1,38 @@
-image: golang:1.25
+stages:
+    - test
+    - build
+    - deploy
 
+variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_BUILDKIT: 1
+
+# Test stage
 fmt:
-  script:
-    - go fmt ./...
-    - go vet ./...
+    stage: test
+    image: golang:1.25
+    script:
+        - go fmt ./...
+        - go vet ./...
+
+# Build Docker image
+build:
+    stage: build
+    image: moby/buildkit:rootless
+    variables:
+        BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+    before_script:
+        - mkdir -p ~/.docker
+        - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > ~/.docker/config.json
+    script:
+        - |
+            buildctl-daemonless.sh build \
+              --frontend dockerfile.v0 \
+              --local context=. \
+              --local dockerfile=. \
+              --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,push=true \
+              --output type=image,name=$CI_REGISTRY_IMAGE:latest,push=true
+    only:
+        - main
+        - tags
