@@ -33,3 +33,5 @@ go.work.sum
 .zed
 __debug_bin*
 .DS_store
+.devcontainer/.devpod-internal
+kind
