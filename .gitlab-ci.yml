@@ -1,0 +1,6 @@
+image: golang:1.25
+
+fmt:
+  script:
+    - go fmt ./...
+    - go vet ./...
