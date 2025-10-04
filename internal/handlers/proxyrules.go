@@ -160,6 +160,13 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Fetch the existing resource to get resourceVersion
+	existing, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error fetching existing proxyrule: %v", err), http.StatusNotFound)
+		return
+	}
+
 	// Read request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -168,35 +175,32 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 	}
 	defer r.Body.Close()
 
-	// Parse JSON into unstructured object
-	var obj map[string]interface{}
-	if err := json.Unmarshal(body, &obj); err != nil {
+	// Parse JSON into map
+	var updates map[string]interface{}
+	if err := json.Unmarshal(body, &updates); err != nil {
 		http.Error(w, fmt.Sprintf("Error parsing JSON: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Create unstructured object
-	unstructuredObj := &unstructured.Unstructured{
-		Object: obj,
+	// Update the spec field from the request
+	if spec, ok := updates["spec"]; ok {
+		existing.Object["spec"] = spec
 	}
 
-	// Ensure name matches
-	if unstructuredObj.GetName() != "" && unstructuredObj.GetName() != name {
-		http.Error(w, "Resource name in body does not match URL path", http.StatusBadRequest)
-		return
-	}
-	unstructuredObj.SetName(name)
+	// Update metadata labels and annotations if provided
+	if metadata, ok := updates["metadata"].(map[string]interface{}); ok {
+		existingMetadata := existing.Object["metadata"].(map[string]interface{})
 
-	// Set apiVersion and kind if not provided
-	if unstructuredObj.GetAPIVersion() == "" {
-		unstructuredObj.SetAPIVersion("bausteln.io/v1")
-	}
-	if unstructuredObj.GetKind() == "" {
-		unstructuredObj.SetKind("Proxyrule")
+		if labels, ok := metadata["labels"]; ok {
+			existingMetadata["labels"] = labels
+		}
+		if annotations, ok := metadata["annotations"]; ok {
+			existingMetadata["annotations"] = annotations
+		}
 	}
 
 	// Update the resource
-	result, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Update(context.Background(), unstructuredObj, metav1.UpdateOptions{})
+	result, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Update(context.Background(), existing, metav1.UpdateOptions{})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error updating proxyrule: %v", err), http.StatusInternalServerError)
 		return
