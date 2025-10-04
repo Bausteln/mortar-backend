@@ -6,11 +6,14 @@
       "source=${localEnv:HOME}/.ssh,target=/vscode/.ssh,type=bind,consistency=cached"
     ]
   },
-  "forwardPorts": [8080],
+  "forwardPorts": [8080, 3000],
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
       "moby": true
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
     },
     "ghcr.io/mikaello/devcontainer-features/modern-shell-utils:2.0.0": {},
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
