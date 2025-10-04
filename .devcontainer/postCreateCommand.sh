@@ -32,7 +32,8 @@ sudo ln -s "$HOME/.krew/bin/kubectl-view_serviceaccount_kubeconfig" /usr/local/b
 # Setup stuff
 curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
 chmod +x ./kind
-./kind create cluster --name motar
+./kind delete clusters mortar
+./kind create cluster --name mortar
 
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
@@ -41,5 +42,22 @@ helm install crossplane \
 --create-namespace crossplane-stable/crossplane \
 --wait
 
+helm install \
+  cert-manager oci://quay.io/jetstack/charts/cert-manager \
+  --version v1.18.2 \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true \
+  --wait
 
-git clone git@gitlab.bausteln.ch:net-core/kubernetes-projects/crossplane.git
+kubectl apply -f manifests/self-signed-cert.yaml
+
+kubectl create namespace proxy-rules
+kubectl apply -f crossplane/functions --wait
+kubectl wait --for=condition=healthy --timeout=300s provider/provider-kubernetes
+kubectl apply -f crossplane/rp --wait
+
+SA=$(kubectl -n crossplane-system get sa -o name | grep provider-kubernetes | sed -e 's|serviceaccount\/|crossplane-system:|g')
+kubectl create clusterrolebinding provider-kubernetes-admin-binding --clusterrole cluster-admin --serviceaccount="${SA}"
+
+kubectl apply -f manifests/test-rule.yaml
