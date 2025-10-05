@@ -82,8 +82,8 @@ rbac:
       verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 # Image pull secrets (if using private registry)
-imagePullSecrets: []
-# - name: gitlab-registry
+imagePullSecrets:
+  - name: regcred
 
 nameOverride: ""
 fullnameOverride: ""
