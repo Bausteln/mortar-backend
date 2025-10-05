@@ -1,0 +1,17 @@
+{{- if .Values.backend.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "mortar.fullname" . }}-test-connection"
+  labels:
+    {{- include "mortar.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "mortar.fullname" . }}-backend:{{ .Values.backend.service.port }}/health']
+  restartPolicy: Never
+{{- end }}

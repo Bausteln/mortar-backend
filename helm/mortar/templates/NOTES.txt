@@ -1,0 +1,55 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your Mortar deployment is ready with the following components:
+
+{{ if .Values.backend.enabled }}
+Backend API:
+  Service: {{ include "mortar.fullname" . }}-backend
+  Port: {{ .Values.backend.service.port }}
+  ServiceAccount: {{ include "mortar.fullname" . }}-backend (with proxyrules RBAC permissions)
+{{- end }}
+
+{{ if .Values.frontend.enabled }}
+Frontend:
+  Service: {{ include "mortar.fullname" . }}-frontend
+  Port: {{ .Values.frontend.service.port }}
+{{- end }}
+
+To access the application:
+
+{{- if .Values.ingress.enabled }}
+
+Ingress is enabled. Access the frontend at:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+
+{{- else }}
+
+Ingress is disabled. To access the frontend locally, run:
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "mortar.fullname" . }}-frontend 8080:{{ .Values.frontend.service.port }}
+
+Then visit: http://localhost:8080
+
+To enable ingress access, upgrade your release with:
+
+  helm upgrade {{ .Release.Name }} {{ .Chart.Name }} --set ingress.enabled=true --set ingress.hosts[0].host=your-domain.com
+
+{{- end }}
+
+To access the backend API directly:
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "mortar.fullname" . }}-backend 8080:{{ .Values.backend.service.port }}
+
+  # List proxyrules
+  curl http://localhost:8080/api/proxyrules
+
+Next steps:
+  1. Ensure the 'proxy-rules' namespace exists or update values.yaml with the correct namespace
+  2. Deploy your ProxyRule CRDs to the {{ .Values.global.proxyRulesNamespace }} namespace
+  3. Configure ingress settings if needed
+
+For more information, visit: https://gitlab.bausteln.ch/net-core/reverse-proxy/mortar-backend

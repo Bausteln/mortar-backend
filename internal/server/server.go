@@ -24,6 +24,7 @@ func New(port string, dynamicClient dynamic.Interface) *Server {
 
 func (s *Server) Start() error {
 	// Register routes
+	http.HandleFunc("/health", s.handleHealth)
 	http.HandleFunc("/api/proxyrules", s.handleProxyRules)
 	http.HandleFunc("/api/proxyrules/", s.handleProxyRules)
 
@@ -33,6 +34,12 @@ func (s *Server) Start() error {
 		return fmt.Errorf("error starting server: %w", err)
 	}
 	return nil
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (s *Server) handleProxyRules(w http.ResponseWriter, r *http.Request) {

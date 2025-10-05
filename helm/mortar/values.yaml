@@ -1,0 +1,96 @@
+# Default values for mortar
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Namespace where proxy-rules CRDs are managed
+  proxyRulesNamespace: proxy-rules
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: reg.bausteln.ch/net-core/reverse-proxy/mortar-backend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # ServiceAccount for accessing Kubernetes API
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: reg.bausteln.ch/net-core/reverse-proxy/mortar-portal
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Ingress configuration (optional, for frontend)
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: mortar.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: mortar-tls
+  #    hosts:
+  #      - mortar.example.com
+
+# RBAC configuration for backend ServiceAccount
+rbac:
+  create: true
+  # Rules for accessing proxyrules CRD
+  rules:
+    - apiGroups: ["bausteln.io"]
+      resources: ["proxyrules"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Image pull secrets (if using private registry)
+imagePullSecrets: []
+# - name: gitlab-registry
+
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

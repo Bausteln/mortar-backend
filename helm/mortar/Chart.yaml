@@ -1,0 +1,9 @@
+apiVersion: v2
+name: mortar
+description: Mortar - Kubernetes Proxy Rules Management with Frontend and Backend
+
+type: application
+
+version: 0.1.0
+
+appVersion: "0.1.0"
