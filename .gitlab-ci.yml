@@ -1,6 +1,7 @@
 stages:
     - test
     - build
+    - package
     - deploy
 
 variables:
@@ -35,6 +36,21 @@ build:
               --local dockerfile=. \
               --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,push=true \
               --output type=image,name=$CI_REGISTRY_IMAGE:latest,push=true
+    only:
+        - main
+        - tags
+
+# Package and publish Helm chart
+package-helm:
+    stage: package
+    image: alpine/helm:latest
+    script:
+        - helm package helm/mortar
+        - |
+            curl --request POST \
+              --user gitlab-ci-token:$CI_JOB_TOKEN \
+              --form "chart=@mortar-0.1.0.tgz" \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/helm/api/stable/charts"
     only:
         - main
         - tags
