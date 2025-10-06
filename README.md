@@ -38,8 +38,8 @@ Mortar provides a user-friendly way to manage reverse proxy rules in Kubernetes 
 ### Deploy with Helm
 
 ```bash
-# Add Helm repo (if published)
-helm repo add mortar https://reg.bausteln.ch/chartrepo/foss
+# Add Helm repo
+helm repo add mortar https://gitlab.bausteln.ch/api/v4/projects/16/packages/helm/stable
 
 # Install with default values
 helm install mortar mortar/mortar
@@ -272,4 +272,4 @@ Contributions welcome! Please ensure:
 
 - **Backend Registry:** `reg.bausteln.ch/foss/reverse-proxy/mortar-backend`
 - **Portal Registry:** `reg.bausteln.ch/foss/reverse-proxy/mortar-portal`
-- **Helm Chart:** `reg.bausteln.ch/chartrepo/foss`
+- **Helm Repository:** `https://gitlab.bausteln.ch/api/v4/projects/16/packages/helm/stable`
