@@ -1,317 +1,275 @@
-# Mortar Backend
+# 🧱 Mortar
 
-A Kubernetes-based API server for managing ProxyRule custom resources in a Kubernetes cluster.
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat&logo=kubernetes&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat&logo=helm&logoColor=white)
+![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)
 
-## Overview
+> A complete solution for managing Kubernetes proxy rules with a REST API and web portal
 
-Mortar Backend provides a REST API to perform CRUD operations on `Proxyrule` custom resources in the `proxy-rules` namespace. It uses the Kubernetes dynamic client to interact with your cluster.
+## 🎯 Overview
 
-## Prerequisites
+Mortar provides a user-friendly way to manage reverse proxy rules in Kubernetes through custom resources (CRDs). It consists of a Go backend API, a React frontend portal, and Crossplane integration for GitOps workflows.
 
-- Go 1.25.1 or later
-- Access to a Kubernetes cluster
-- `~/.kube/config` file configured with cluster credentials
-- `Proxyrule` CRD installed in your cluster
+## 🏗️ Architecture
 
-## Installation
+```
+┌─────────────────┐
+│  Mortar Portal  │  ← React UI
+│   (Frontend)    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Mortar Backend  │  ← Go REST API
+│      (API)      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Kubernetes    │
+│  ProxyRule CRD  │  ← Custom Resources
+└─────────────────┘
+```
+
+## ⚡ Quick Start
+
+### Deploy with Helm
 
 ```bash
-# Clone the repository
-git clone https://gitlab.bausteln.ch/net-core/reverse-proxy/mortar-backend.git
-cd mortar-backend
+# Add Helm repo (if published)
+helm repo add mortar https://reg.bausteln.ch/chartrepo/foss
 
-# Install dependencies
-go mod tidy
+# Install with default values
+helm install mortar mortar/mortar
 
-# Build the application
-go build -o mortar-backend
+# Or install from source
+helm install mortar ./helm/mortar
 ```
 
-## Running the Server
+### Custom Installation
 
 ```bash
-# Run directly with Go
-go run main.go
+# With custom values
+helm install mortar ./helm/mortar \
+  --set frontend.ingress.enabled=true \
+  --set frontend.ingress.hosts[0].host=mortar.example.com
 
-# Or run the compiled binary
-./mortar-backend
+# With external values file
+helm install mortar ./helm/mortar -f custom-values.yaml
 ```
 
-The server will start on port `8080` by default.
+## 📦 Components
 
-## Project Structure
+### 🔧 Backend (Go API)
+REST API for CRUD operations on ProxyRule resources
+- **Port:** 8080
+- **Namespace:** `proxy-rules`
+- **Image:** `reg.bausteln.ch/foss/reverse-proxy/mortar-backend`
 
-```
-mortar-backend/
-├── main.go                           # Application entry point
-├── internal/
-│   ├── k8s/
-│   │   └── client.go                # Kubernetes client initialization
-│   ├── handlers/
-│   │   └── proxyrules.go            # HTTP request handlers for CRUD operations
-│   └── server/
-│       └── server.go                # Server setup and routing
-```
+### 🎨 Frontend (React Portal)
+Web UI for managing proxy rules
+- **Port:** 80
+- **Features:** Create, edit, delete, and list proxy rules
+- **Image:** `reg.bausteln.ch/foss/reverse-proxy/mortar-portal`
 
-## ProxyRule Resource Schema
+### ☸️ Crossplane
+CRD definitions and compositions for GitOps workflows
 
-ProxyRule resources have the following structure:
+## 🔌 API Endpoints
+
+Base path: `/api/proxyrules`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | List all rules |
+| `GET` | `/{name}` | Get specific rule |
+| `POST` | `/` | Create rule |
+| `PUT` | `/{name}` | Update rule |
+| `DELETE` | `/{name}` | Delete rule |
+
+### ProxyRule Schema
 
 ```yaml
 apiVersion: bausteln.io/v1
 kind: Proxyrule
 metadata:
-  name: example-rule
+  name: my-app
   namespace: proxy-rules
 spec:
-  domain: example.com              # Required: The domain to proxy
-  destination: backend-service     # Required: The destination to route traffic to
-  port: 8080                       # Optional: The destination port
-  tls: true                        # Optional: Enable TLS (default: true)
+  domain: app.example.com    # Required
+  destination: backend-svc    # Required
+  port: 8080                  # Optional
+  tls: true                   # Optional (default: true)
 ```
 
-## API Endpoints
+### Example API Call
 
-All endpoints are prefixed with `/api/proxyrules`.
-
-### 1. List All ProxyRules
-
-**Endpoint:** `GET /api/proxyrules`
-
-**Description:** Retrieves all ProxyRule resources in the `proxy-rules` namespace.
-
-**Example:**
-```bash
-curl http://localhost:8080/api/proxyrules
-```
-
-**Response:**
-```json
-{
-  "apiVersion": "v1",
-  "kind": "List",
-  "items": [
-    {
-      "apiVersion": "bausteln.io/v1",
-      "kind": "Proxyrule",
-      "metadata": {
-        "name": "example-rule",
-        "namespace": "proxy-rules"
-      },
-      "spec": {
-        "domain": "example.com",
-        "destination": "backend-service",
-        "port": 8080,
-        "tls": true
-      }
-    }
-  ]
-}
-```
-
----
-
-### 2. Get a Specific ProxyRule
-
-**Endpoint:** `GET /api/proxyrules/{name}`
-
-**Description:** Retrieves a specific ProxyRule by name.
-
-**Example:**
-```bash
-curl http://localhost:8080/api/proxyrules/example-rule
-```
-
-**Response:**
-```json
-{
-  "apiVersion": "bausteln.io/v1",
-  "kind": "Proxyrule",
-  "metadata": {
-    "name": "example-rule",
-    "namespace": "proxy-rules",
-    "uid": "abc-123",
-    "resourceVersion": "12345"
-  },
-  "spec": {
-    "domain": "example.com",
-    "destination": "backend-service",
-    "port": 8080,
-    "tls": true
-  }
-}
-```
-
----
-
-### 3. Create a ProxyRule
-
-**Endpoint:** `POST /api/proxyrules`
-
-**Description:** Creates a new ProxyRule resource.
-
-**Example:**
 ```bash
 curl -X POST http://localhost:8080/api/proxyrules \
   -H "Content-Type: application/json" \
   -d '{
-    "metadata": {
-      "name": "my-app-rule"
-    },
+    "metadata": {"name": "my-rule"},
     "spec": {
-      "domain": "myapp.example.com",
-      "destination": "myapp-backend-service",
-      "port": 8080,
-      "tls": true
+      "domain": "app.example.com",
+      "destination": "backend-svc",
+      "port": 8080
     }
   }'
 ```
 
-**Minimal Example (without optional fields):**
-```bash
-curl -X POST http://localhost:8080/api/proxyrules \
-  -H "Content-Type: application/json" \
-  -d '{
-    "metadata": {
-      "name": "simple-rule"
-    },
-    "spec": {
-      "domain": "simple.example.com",
-      "destination": "simple-backend"
-    }
-  }'
-```
+## 🛠️ Development
 
-**Response:** Returns the created resource with a `201 Created` status.
+### Prerequisites
 
----
+- Go 1.25.1+
+- Node.js 18+ (for portal)
+- Kubernetes cluster
+- `kubectl` configured
+- Docker (optional)
 
-### 4. Update a ProxyRule
-
-**Endpoint:** `PUT /api/proxyrules/{name}`
-
-**Description:** Updates an existing ProxyRule resource.
-
-**Example:**
-```bash
-curl -X PUT http://localhost:8080/api/proxyrules/my-app-rule \
-  -H "Content-Type: application/json" \
-  -d '{
-    "metadata": {
-      "name": "my-app-rule"
-    },
-    "spec": {
-      "domain": "myapp.example.com",
-      "destination": "myapp-backend-service-v2",
-      "port": 9090,
-      "tls": false
-    }
-  }'
-```
-
-**Response:** Returns the updated resource with a `200 OK` status.
-
-**Notes:**
-- The name in the URL must match the name in the request body
-- Include all fields you want to keep (partial updates are not supported)
-
----
-
-### 5. Delete a ProxyRule
-
-**Endpoint:** `DELETE /api/proxyrules/{name}`
-
-**Description:** Deletes a ProxyRule resource.
-
-**Example:**
-```bash
-curl -X DELETE http://localhost:8080/api/proxyrules/my-app-rule
-```
-
-**Response:** Returns `204 No Content` on success.
-
----
-
-## Complete Usage Example
-
-Here's a complete workflow example:
+### Backend Development
 
 ```bash
-# 1. Start the server
+# Install dependencies
+go mod tidy
+
+# Run locally
 go run main.go
 
-# 2. Create a new ProxyRule
-curl -X POST http://localhost:8080/api/proxyrules \
-  -H "Content-Type: application/json" \
-  -d '{
-    "metadata": {
-      "name": "test-rule"
-    },
-    "spec": {
-      "domain": "test.example.com",
-      "destination": "test-backend",
-      "port": 3000,
-      "tls": true
-    }
-  }'
-
-# 3. List all rules
-curl http://localhost:8080/api/proxyrules
-
-# 4. Get the specific rule
-curl http://localhost:8080/api/proxyrules/test-rule
-
-# 5. Update the rule
-curl -X PUT http://localhost:8080/api/proxyrules/test-rule \
-  -H "Content-Type: application/json" \
-  -d '{
-    "metadata": {
-      "name": "test-rule"
-    },
-    "spec": {
-      "domain": "test.example.com",
-      "destination": "test-backend-v2",
-      "port": 4000,
-      "tls": true
-    }
-  }'
-
-# 6. Delete the rule
-curl -X DELETE http://localhost:8080/api/proxyrules/test-rule
-```
-
-## Error Handling
-
-The API returns standard HTTP status codes:
-
-- `200 OK` - Successful GET/PUT request
-- `201 Created` - Successful POST request
-- `204 No Content` - Successful DELETE request
-- `400 Bad Request` - Invalid request format or missing required fields
-- `404 Not Found` - Resource not found
-- `405 Method Not Allowed` - HTTP method not supported for endpoint
-- `500 Internal Server Error` - Server or Kubernetes API error
-
-Error responses include a descriptive message in the response body.
-
-## Configuration
-
-The following configuration is currently hardcoded but can be customized in the code:
-
-- **Namespace:** `proxy-rules` (defined in `internal/handlers/proxyrules.go`)
-- **Server Port:** `8080` (defined in `main.go`)
-- **API Group:** `bausteln.io` (defined in `internal/handlers/proxyrules.go`)
-- **API Version:** `v1` (defined in `internal/handlers/proxyrules.go`)
-- **Kubeconfig Path:** `~/.kube/config` (defined in `internal/k8s/client.go`)
-
-## Development
-
-### Building
-```bash
+# Build
 go build -o mortar-backend
-```
 
-### Running Tests
-```bash
+# Build Docker image
+docker build -t mortar-backend .
+
+# Test
 go test ./...
 ```
+
+### Frontend Development
+
+```bash
+cd portal
+
+# Install dependencies
+npm install
+
+# Run dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Build Docker image
+docker build -t mortar-portal .
+```
+
+### Install Crossplane CRDs
+
+```bash
+kubectl apply -f crossplane/rp/xrd-proxy.yaml
+kubectl apply -f crossplane/rp/composition-proxy.yaml
+kubectl apply -f crossplane/functions/
+```
+
+## 📂 Project Structure
+
+```
+mortar-backend/
+├── internal/
+│   ├── k8s/client.go          # Kubernetes client
+│   ├── handlers/proxyrules.go # API handlers
+│   └── server/server.go        # HTTP server
+├── portal/                     # React frontend
+│   └── src/
+│       ├── components/         # React components
+│       └── App.jsx            # Main app
+├── helm/mortar/               # Helm chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/
+├── crossplane/                 # Crossplane resources
+│   ├── rp/                    # ProxyRule CRD & composition
+│   └── functions/             # Composition functions
+├── Dockerfile                  # Backend container
+└── main.go                     # Entry point
+```
+
+## ⚙️ Configuration
+
+### Helm Values
+
+Key configuration options in `helm/mortar/values.yaml`:
+
+```yaml
+global:
+  proxyRulesNamespace: proxy-rules
+
+backend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: reg.bausteln.ch/foss/reverse-proxy/mortar-backend
+    tag: latest
+
+frontend:
+  enabled: true
+  replicaCount: 1
+
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: mortar.example.com
+```
+
+### Environment Variables
+
+Backend supports in-cluster and local kubeconfig:
+- **In-cluster:** Automatically uses ServiceAccount
+- **Local:** Uses `~/.kube/config`
+
+## 🔐 RBAC
+
+The Helm chart creates necessary RBAC resources:
+- ServiceAccount for backend
+- ClusterRole with ProxyRule permissions
+- ClusterRoleBinding
+
+## 🚀 CI/CD
+
+Automated pipeline with GitLab CI:
+1. **Test** - Go fmt/vet
+2. **Build** - Docker images (backend + portal)
+3. **Package** - Helm chart publishing
+4. **Deploy** - Automatic deployment (optional)
+
+## 📊 Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success (GET/PUT) |
+| 201 | Created (POST) |
+| 204 | Deleted (DELETE) |
+| 400 | Bad Request |
+| 404 | Not Found |
+| 500 | Server Error |
+
+## 📄 License
+
+BSD 3-Clause License - see [LICENSE](LICENSE) file for details
+
+## 🤝 Contributing
+
+Contributions welcome! Please ensure:
+- Code follows `go fmt` standards
+- Tests pass with `go test ./...`
+- Frontend builds without errors
+
+## 🔗 Links
+
+- **Backend Registry:** `reg.bausteln.ch/foss/reverse-proxy/mortar-backend`
+- **Portal Registry:** `reg.bausteln.ch/foss/reverse-proxy/mortar-portal`
+- **Helm Chart:** `reg.bausteln.ch/chartrepo/foss`
