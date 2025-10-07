@@ -52,7 +52,7 @@ release:
 	sed -i.bak "s/^appVersion: .*/appVersion: \"$$NEW_VERSION\"/" $(HELM_CHART); \
 	rm -f $(HELM_CHART).bak; \
 	echo "==> Updating Helm values.yaml Docker image tags..."; \
-	awk -v ver="$$NEW_VERSION" ' \
+	awk -v ver="v$$NEW_VERSION" ' \
 		/^backend:/ { in_backend=1; in_frontend=0 } \
 		/^frontend:/ { in_frontend=1; in_backend=0 } \
 		/^[a-zA-Z]/ && !/^backend:/ && !/^frontend:/ { in_backend=0; in_frontend=0 } \
