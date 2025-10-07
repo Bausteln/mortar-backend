@@ -1,15 +1,18 @@
-.PHONY: release help
+.PHONY: release push help
 
 HELM_CHART := helm/mortar/Chart.yaml
 HELM_VALUES := helm/mortar/values.yaml
 
 help:
-	@echo "Usage: make release TYPE=<major|minor|patch>"
+	@echo "Usage:"
+	@echo "  make release TYPE=<major|minor|patch>  # Create a new release"
+	@echo "  make push                               # Push backend and portal tags"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make release TYPE=major   # 1.2.3 -> 2.0.0"
 	@echo "  make release TYPE=minor   # 1.2.3 -> 1.3.0"
 	@echo "  make release TYPE=patch   # 1.2.3 -> 1.2.4"
+	@echo "  make push                 # Push tags to trigger CI/CD"
 
 release:
 	@if [ -z "$(TYPE)" ]; then \
@@ -69,6 +72,21 @@ release:
 	echo "✓ Release v$$NEW_VERSION created successfully!"; \
 	echo ""; \
 	echo "Next steps:"; \
-	echo "  git push origin main"; \
-	echo "  git push origin v$$NEW_VERSION"; \
-	echo "  cd portal && git push origin v$$NEW_VERSION"
+	echo "  make push"
+
+push:
+	@echo "==> Pushing backend repository..."
+	@git push origin main
+	@LATEST_TAG=$$(git describe --tags --abbrev=0 2>/dev/null || echo ""); \
+	if [ -n "$$LATEST_TAG" ]; then \
+		echo "==> Pushing backend tag $$LATEST_TAG..."; \
+		git push origin $$LATEST_TAG; \
+		echo "==> Pushing portal tag $$LATEST_TAG..."; \
+		git -C portal push origin $$LATEST_TAG; \
+		echo ""; \
+		echo "✓ Tags pushed successfully!"; \
+		echo "✓ CI/CD pipeline will now build and publish Docker images"; \
+	else \
+		echo "Error: No tags found. Run 'make release' first."; \
+		exit 1; \
+	fi
