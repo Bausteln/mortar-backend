@@ -1,56 +1,68 @@
 stages:
-    - test
-    - build
-    - package
-    - deploy
+  - test
+  - build
+  - package
+  - trigger
+  - deploy
 
 variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_BUILDKIT: 1
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_BUILDKIT: 1
 
 # Test stage
 fmt:
-    stage: test
-    image: golang:1.25
-    script:
-        - go fmt ./...
-        - go vet ./...
+  stage: test
+  image: golang:1.25
+  script:
+    - go fmt ./...
+    - go vet ./...
 
 # Build Docker image
 build:
-    stage: build
-    image:
-        name: moby/buildkit:rootless
-        entrypoint: [""]
-    variables:
-        BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
-    before_script:
-        - mkdir -p ~/.docker
-        - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
-    script:
-        - |
-            buildctl-daemonless.sh build \
-              --frontend dockerfile.v0 \
-              --local context=. \
-              --local dockerfile=. \
-              --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,push=true \
-              --output type=image,name=$CI_REGISTRY_IMAGE:latest,push=true
-    only:
-        - main
-        - tags
+  stage: build
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""]
+  variables:
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+  script:
+    - |
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context=. \
+        --local dockerfile=. \
+        --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA,push=true \
+        --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG,push=true \
+        --output type=image,name=$CI_REGISTRY_IMAGE:latest,push=true
+  only:
+    - tags
 
 # Package and publish Helm chart
 package-helm:
-    stage: package
-    image: alpine/helm:latest
-    script:
-        - helm package helm/mortar
-        - |
-            curl --request POST \
-              --user gitlab-ci-token:$CI_JOB_TOKEN \
-              --form "chart=@mortar-0.1.0.tgz" \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/helm/api/stable/charts"
-    only:
-        - main
-        - tags
+  stage: package
+  image: alpine/helm:latest
+  script:
+    - helm package helm/mortar
+    - |
+      curl --request POST \
+        --user gitlab-ci-token:$CI_JOB_TOKEN \
+        --form "chart=@mortar.${CI_COMMIT_TAG}.tgz" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/helm/api/stable/charts"
+  only:
+    - tags
+
+# Trigger portal build with version tag
+trigger-portal:
+  stage: trigger
+  trigger:
+    project: foss/reverse-proxy/mortar-portal
+    branch: main
+    strategy: depend
+  variables:
+    VERSION_TAG: $CI_COMMIT_TAG
+  only:
+    - tags
