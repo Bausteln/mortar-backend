@@ -14,7 +14,7 @@ backend:
     image:
         repository: reg.bausteln.ch/foss/reverse-proxy/mortar-backend
         pullPolicy: IfNotPresent
-        tag: "latest"
+        tag: "0.1.0"
 
     service:
         type: ClusterIP
@@ -42,7 +42,7 @@ frontend:
     image:
         repository: reg.bausteln.ch/foss/reverse-proxy/mortar-portal
         pullPolicy: IfNotPresent
-        tag: "latest"
+        tag: "0.1.0"
 
     service:
         type: ClusterIP
