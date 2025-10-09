@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"gitlab.bausteln.ch/net-core/reverse-proxy/mortar-backend/internal/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,13 +98,25 @@ func (h *ProxyRulesHandler) CreateProxyRule(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Validate request (content-type, body size)
+	if err := validation.ValidateJSONRequest(w, r); err != nil {
+		validation.HandleValidationError(w, err)
+		return
+	}
+
 	// Read request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
+		validation.HandleValidationError(w, err)
 		return
 	}
 	defer r.Body.Close()
+
+	// Validate request body
+	if err := validation.ValidateRequestBody(body); err != nil {
+		validation.HandleValidationError(w, err)
+		return
+	}
 
 	// Parse JSON into unstructured object
 	var obj map[string]interface{}
@@ -123,6 +136,30 @@ func (h *ProxyRulesHandler) CreateProxyRule(w http.ResponseWriter, r *http.Reque
 	}
 	if unstructuredObj.GetKind() == "" {
 		unstructuredObj.SetKind("Proxyrule")
+	}
+
+	// Set namespace if not provided
+	if unstructuredObj.GetNamespace() == "" {
+		unstructuredObj.SetNamespace(proxyRulesNamespace)
+	}
+
+	// Validate ProxyRule
+	if validationErrs := validation.ValidateProxyRuleCreate(unstructuredObj); len(validationErrs) > 0 {
+		validation.HandleValidationError(w, validationErrs)
+		return
+	}
+
+	// Check for duplicate name
+	existingByName, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Get(context.Background(), unstructuredObj.GetName(), metav1.GetOptions{})
+	if err == nil && existingByName != nil {
+		http.Error(w, fmt.Sprintf("Proxy rule with name '%s' already exists", unstructuredObj.GetName()), http.StatusConflict)
+		return
+	}
+
+	// Check for duplicate domain
+	if err := h.checkDuplicateDomain(unstructuredObj, ""); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
 	}
 
 	// Create the resource
@@ -160,6 +197,12 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Validate request (content-type, body size)
+	if err := validation.ValidateJSONRequest(w, r); err != nil {
+		validation.HandleValidationError(w, err)
+		return
+	}
+
 	// Fetch the existing resource to get resourceVersion
 	existing, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
@@ -170,10 +213,16 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 	// Read request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
+		validation.HandleValidationError(w, err)
 		return
 	}
 	defer r.Body.Close()
+
+	// Validate request body
+	if err := validation.ValidateRequestBody(body); err != nil {
+		validation.HandleValidationError(w, err)
+		return
+	}
 
 	// Parse JSON into map
 	var updates map[string]interface{}
@@ -199,6 +248,18 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
+	// Validate updated ProxyRule
+	if validationErrs := validation.ValidateProxyRuleUpdate(existing); len(validationErrs) > 0 {
+		validation.HandleValidationError(w, validationErrs)
+		return
+	}
+
+	// Check for duplicate domain (excluding the current rule)
+	if err := h.checkDuplicateDomain(existing, name); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+
 	// Update the resource
 	result, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).Update(context.Background(), existing, metav1.UpdateOptions{})
 	if err != nil {
@@ -212,6 +273,41 @@ func (h *ProxyRulesHandler) UpdateProxyRule(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+// checkDuplicateDomain checks if another proxy rule already uses the same domain
+// excludeName is used during updates to exclude the rule being updated from the check
+func (h *ProxyRulesHandler) checkDuplicateDomain(obj *unstructured.Unstructured, excludeName string) error {
+	// Get the domain from the spec
+	domain, found, err := unstructured.NestedString(obj.Object, "spec", "domain")
+	if err != nil || !found || domain == "" {
+		return nil // No domain to check
+	}
+
+	// List all proxy rules
+	list, err := h.dynamicClient.Resource(h.getGVR()).Namespace(proxyRulesNamespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("error checking for duplicate domain: %v", err)
+	}
+
+	// Check each rule for matching domain
+	for _, item := range list.Items {
+		// Skip the rule we're updating (if any)
+		if excludeName != "" && item.GetName() == excludeName {
+			continue
+		}
+
+		existingDomain, found, err := unstructured.NestedString(item.Object, "spec", "domain")
+		if err != nil || !found {
+			continue
+		}
+
+		if existingDomain == domain {
+			return fmt.Errorf("proxy rule with domain '%s' already exists (used by rule '%s')", domain, item.GetName())
+		}
+	}
+
+	return nil
 }
 
 func (h *ProxyRulesHandler) DeleteProxyRule(w http.ResponseWriter, r *http.Request) {
