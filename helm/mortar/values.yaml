@@ -75,11 +75,14 @@ ingress:
 # RBAC configuration for backend ServiceAccount
 rbac:
     create: true
-    # Rules for accessing proxyrules CRD
+    # Rules for accessing proxyrules CRD and ingresses
     rules:
         - apiGroups: ["bausteln.io"]
           resources: ["proxyrules"]
           verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+        - apiGroups: ["networking.k8s.io"]
+          resources: ["ingresses"]
+          verbs: ["get", "list", "watch"]
 
 # Image pull secrets (if using private registry)
 # imagePullSecrets:
