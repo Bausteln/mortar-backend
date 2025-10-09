@@ -13,12 +13,14 @@ import (
 type Server struct {
 	port              string
 	proxyRulesHandler *handlers.ProxyRulesHandler
+	ingressHandler    *handlers.IngressHandler
 }
 
 func New(port string, dynamicClient dynamic.Interface) *Server {
 	return &Server{
 		port:              port,
 		proxyRulesHandler: handlers.NewProxyRulesHandler(dynamicClient),
+		ingressHandler:    handlers.NewIngressHandler(dynamicClient),
 	}
 }
 
@@ -27,6 +29,7 @@ func (s *Server) Start() error {
 	http.HandleFunc("/health", s.handleHealth)
 	http.HandleFunc("/api/proxyrules", s.handleProxyRules)
 	http.HandleFunc("/api/proxyrules/", s.handleProxyRules)
+	http.HandleFunc("/api/ingresses", s.handleIngresses)
 
 	// Start server
 	fmt.Printf("Starting API server on port %s...\n", s.port)
@@ -75,6 +78,16 @@ func (s *Server) handleProxyRules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Not found", http.StatusNotFound)
+}
+
+func (s *Server) handleIngresses(w http.ResponseWriter, r *http.Request) {
+	// Only GET method is allowed (read-only)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.ingressHandler.GetIngresses(w, r)
 }
 
 func (s *Server) Run() {
