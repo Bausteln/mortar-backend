@@ -11,12 +11,108 @@ variables:
   DOCKER_BUILDKIT: 1
 
 # Test stage
-fmt:
+lint:
   stage: test
   image: golang:1.25
   script:
     - go fmt ./...
     - go vet ./...
+  only:
+    - merge_requests
+    - main
+    - tags
+
+unit-tests:
+  stage: test
+  image: golang:1.25
+  script:
+    - echo "Running unit tests for validation package..."
+    - go test -v -race -coverprofile=validation-coverage.out ./internal/validation/...
+    - go tool cover -func=validation-coverage.out
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: validation-coverage.out
+    paths:
+      - validation-coverage.out
+    expire_in: 30 days
+  only:
+    - merge_requests
+    - main
+    - tags
+
+integration-tests:
+  stage: test
+  image: golang:1.25
+  script:
+    - echo "Running integration tests for handlers..."
+    - go test -v -race -coverprofile=handlers-coverage.out ./internal/handlers/...
+    - go tool cover -func=handlers-coverage.out
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: handlers-coverage.out
+    paths:
+      - handlers-coverage.out
+    expire_in: 30 days
+  only:
+    - merge_requests
+    - main
+    - tags
+
+e2e-tests:
+  stage: test
+  image: golang:1.25
+  script:
+    - echo "Running end-to-end tests for server..."
+    - go test -v -race -coverprofile=server-coverage.out ./internal/server/...
+    - go tool cover -func=server-coverage.out
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: server-coverage.out
+    paths:
+      - server-coverage.out
+    expire_in: 30 days
+  only:
+    - merge_requests
+    - main
+    - tags
+
+test-all:
+  stage: test
+  image: golang:1.25
+  script:
+    - echo "Running all tests with coverage..."
+    - go test -v -race -coverprofile=coverage.out ./...
+    - go tool cover -func=coverage.out
+    - echo "Ensuring minimum coverage threshold..."
+    - |
+      COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+      echo "Total coverage: $COVERAGE%"
+      if (( $(echo "$COVERAGE < 40.0" | bc -l) )); then
+        echo "Coverage is below 40% threshold"
+        exit 1
+      fi
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.out
+    paths:
+      - coverage.out
+    expire_in: 30 days
+  only:
+    - merge_requests
+    - main
+    - tags
 
 # Build Docker image
 build:
