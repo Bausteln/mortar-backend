@@ -128,6 +128,26 @@ func TestValidateDomain(t *testing.T) {
 			domain:    "example_test.com",
 			wantError: true,
 		},
+		{
+			name:      "valid wildcard domain",
+			domain:    "*.example.com",
+			wantError: false,
+		},
+		{
+			name:      "valid wildcard subdomain",
+			domain:    "*.api.example.com",
+			wantError: false,
+		},
+		{
+			name:      "invalid wildcard - no domain after wildcard",
+			domain:    "*.",
+			wantError: true,
+		},
+		{
+			name:      "invalid wildcard - just asterisk",
+			domain:    "*",
+			wantError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -394,6 +414,38 @@ func TestValidateProxyRuleCreate(t *testing.T) {
 					"spec": map[string]interface{}{
 						"domain":      "example.com",
 						"destination": "10.0.0.50",
+					},
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "valid wildcard domain",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name": "wildcard-rule",
+					},
+					"spec": map[string]interface{}{
+						"domain":      "*.example.com",
+						"destination": "10.0.0.50",
+						"port":        int64(3000),
+					},
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "valid proxy rule with destinations array",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name": "load-balanced-rule",
+					},
+					"spec": map[string]interface{}{
+						"domain":       "example.com",
+						"destinations": []interface{}{"10.0.0.50", "10.0.0.51", "backend.local"},
+						"port":         int64(3000),
 					},
 				},
 			},

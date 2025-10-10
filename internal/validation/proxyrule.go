@@ -251,7 +251,7 @@ func validateSpec(obj *unstructured.Unstructured) ValidationErrors {
 	return errors
 }
 
-// validateDomain validates a domain name
+// validateDomain validates a domain name (including wildcard domains)
 func validateDomain(domain string) ValidationErrors {
 	var errors ValidationErrors
 
@@ -259,14 +259,6 @@ func validateDomain(domain string) ValidationErrors {
 		errors = append(errors, ValidationError{
 			Field:   "spec.domain",
 			Message: fmt.Sprintf("domain must not exceed %d characters", maxDomainLength),
-		})
-	}
-
-	// Check if it's a valid DNS name
-	if !dnsNameRegex.MatchString(strings.ToLower(domain)) {
-		errors = append(errors, ValidationError{
-			Field:   "spec.domain",
-			Message: "domain must be a valid DNS name (lowercase alphanumeric characters, '-', and '.' only)",
 		})
 	}
 
@@ -283,6 +275,31 @@ func validateDomain(domain string) ValidationErrors {
 		errors = append(errors, ValidationError{
 			Field:   "spec.domain",
 			Message: "domain must not contain consecutive dots",
+		})
+	}
+
+	// Handle wildcard domains (e.g., *.example.com)
+	domainToValidate := domain
+	isWildcard := false
+	if strings.HasPrefix(domain, "*.") {
+		isWildcard = true
+		domainToValidate = domain[2:] // Remove "*." prefix for validation
+	}
+
+	// Wildcard domain must have at least one dot after the wildcard
+	if isWildcard && domainToValidate == "" {
+		errors = append(errors, ValidationError{
+			Field:   "spec.domain",
+			Message: "wildcard domain must be in the format *.example.com",
+		})
+		return errors
+	}
+
+	// Check if it's a valid DNS name
+	if !dnsNameRegex.MatchString(strings.ToLower(domainToValidate)) {
+		errors = append(errors, ValidationError{
+			Field:   "spec.domain",
+			Message: "domain must be a valid DNS name (lowercase alphanumeric characters, '-', and '.' only)",
 		})
 	}
 
