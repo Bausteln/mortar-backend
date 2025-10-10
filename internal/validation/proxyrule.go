@@ -36,11 +36,12 @@ func (e ValidationErrors) Error() string {
 
 // ProxyRuleSpec represents the expected structure of a ProxyRule spec
 type ProxyRuleSpec struct {
-	Domain      string
-	Destination string
-	Port        int
-	TLS         bool
-	Annotations map[string]string
+	Domain       string
+	Destination  string
+	Destinations []string
+	Port         int
+	TLS          bool
+	Annotations  map[string]string
 }
 
 const (
@@ -150,20 +151,52 @@ func validateSpec(obj *unstructured.Unstructured) ValidationErrors {
 		errors = append(errors, validateDomain(domain)...)
 	}
 
-	// Validate destination (required)
-	destination, found, err := unstructured.NestedString(spec, "destination")
-	if err != nil {
+	// Validate destination/destinations (at least one is required)
+	destination, destFound, destErr := unstructured.NestedString(spec, "destination")
+	destinations, destsFound, destsErr := unstructured.NestedStringSlice(spec, "destinations")
+
+	// Check if at least one is provided
+	if (!destFound || destination == "") && (!destsFound || len(destinations) == 0) {
+		errors = append(errors, ValidationError{
+			Field:   "spec.destination/destinations",
+			Message: "either destination or destinations is required",
+		})
+	}
+
+	// Validate single destination if provided
+	if destErr != nil {
 		errors = append(errors, ValidationError{
 			Field:   "spec.destination",
-			Message: fmt.Sprintf("invalid destination type: %v", err),
+			Message: fmt.Sprintf("invalid destination type: %v", destErr),
 		})
-	} else if !found || destination == "" {
-		errors = append(errors, ValidationError{
-			Field:   "spec.destination",
-			Message: "destination is required",
-		})
-	} else {
+	} else if destFound && destination != "" {
 		errors = append(errors, validateDestination(destination)...)
+	}
+
+	// Validate destinations array if provided
+	if destsErr != nil {
+		errors = append(errors, ValidationError{
+			Field:   "spec.destinations",
+			Message: fmt.Sprintf("invalid destinations type: %v", destsErr),
+		})
+	} else if destsFound && len(destinations) > 0 {
+		for i, dest := range destinations {
+			if dest == "" {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("spec.destinations[%d]", i),
+					Message: "destination cannot be empty",
+				})
+			} else {
+				// Validate each destination and prefix field name with index
+				destErrors := validateDestination(dest)
+				for _, e := range destErrors {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("spec.destinations[%d]", i),
+						Message: e.Message,
+					})
+				}
+			}
+		}
 	}
 
 	// Validate port (optional)
