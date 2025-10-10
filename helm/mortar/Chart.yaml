@@ -4,6 +4,6 @@ description: Mortar - Kubernetes Proxy Rules Management with Frontend and Backen
 
 type: application
 
-version: 0.4.0
+version: 0.5.0
 
-appVersion: "0.4.0"
+appVersion: "0.5.0"
