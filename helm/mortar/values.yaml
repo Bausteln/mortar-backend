@@ -14,7 +14,7 @@ backend:
     image:
         repository: reg.bausteln.ch/foss/reverse-proxy/mortar-backend
         pullPolicy: IfNotPresent
-        tag: "v0.5.2"
+        tag: "v0.6.0"
 
     service:
         type: ClusterIP
@@ -42,7 +42,7 @@ frontend:
     image:
         repository: reg.bausteln.ch/foss/reverse-proxy/mortar-portal
         pullPolicy: IfNotPresent
-        tag: "v0.5.2"
+        tag: "v0.6.0"
 
     service:
         type: ClusterIP
@@ -89,7 +89,7 @@ crossplane:
     enabled: true
     package:
         repository: reg.bausteln.ch/foss/reverse-proxy/proxy-rules
-        tag: "v0.5.2"
+        tag: "v0.6.0"
 
 # Image pull secrets (if using private registry)
 # imagePullSecrets:
