@@ -163,3 +163,15 @@ trigger-portal:
     VERSION_TAG: $CI_COMMIT_TAG
   only:
     - tags
+
+# Trigger crossplane build with version tag
+trigger-crossplane:
+  stage: trigger
+  trigger:
+    project: foss/reverse-proxy/proxy-rules
+    branch: main
+    strategy: depend
+  variables:
+    VERSION_TAG: $CI_COMMIT_TAG
+  only:
+    - tags

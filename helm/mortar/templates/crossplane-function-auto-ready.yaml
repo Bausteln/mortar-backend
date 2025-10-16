@@ -1,0 +1,9 @@
+{{- if .Values.crossplane.enabled }}
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-auto-ready
+  namespace: {{ .Values.global.proxyRulesNamespace }}
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.5.0
+{{- end }}

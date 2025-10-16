@@ -1,0 +1,10 @@
+{{- if .Values.crossplane.enabled }}
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: proxyrules
+  namespace: {{ .Values.global.proxyRulesNamespace }}
+spec:
+  packagePullPolicy: Always
+  package: {{ .Values.crossplane.package.repository }}:{{ .Values.crossplane.package.tag }}
+{{- end }}

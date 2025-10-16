@@ -1,0 +1,6 @@
+{{- if .Values.crossplane.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.global.proxyRulesNamespace }}
+{{- end }}

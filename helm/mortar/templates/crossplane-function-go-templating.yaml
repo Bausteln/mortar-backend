@@ -1,0 +1,9 @@
+{{- if .Values.crossplane.enabled }}
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-go-templating
+  namespace: {{ .Values.global.proxyRulesNamespace }}
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-go-templating:v0.11.0
+{{- end }}

@@ -84,6 +84,13 @@ rbac:
           resources: ["ingresses"]
           verbs: ["get", "list", "watch"]
 
+# Crossplane configuration
+crossplane:
+    enabled: true
+    package:
+        repository: reg.bausteln.ch/foss/reverse-proxy/proxy-rules
+        tag: "v0.5.2"
+
 # Image pull secrets (if using private registry)
 # imagePullSecrets:
 #     - name: regcred

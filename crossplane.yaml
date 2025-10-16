@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: proxyrules
+spec:
+  packagePullPolicy: Always
+  package: reg.bausteln.ch/foss/reverse-proxy/proxy-rules:latest
+

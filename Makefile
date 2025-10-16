@@ -51,19 +51,23 @@ release:
 	sed -i.bak "s/^version: .*/version: $$NEW_VERSION/" $(HELM_CHART); \
 	sed -i.bak "s/^appVersion: .*/appVersion: \"$$NEW_VERSION\"/" $(HELM_CHART); \
 	rm -f $(HELM_CHART).bak; \
-	echo "==> Updating Helm values.yaml Docker image tags..."; \
+	echo "==> Updating Helm values.yaml Docker image tags and crossplane package..."; \
 	awk -v ver="v$$NEW_VERSION" ' \
-		/^backend:/ { in_backend=1; in_frontend=0 } \
-		/^frontend:/ { in_frontend=1; in_backend=0 } \
-		/^[a-zA-Z]/ && !/^backend:/ && !/^frontend:/ { in_backend=0; in_frontend=0 } \
+		/^backend:/ { in_backend=1; in_frontend=0; in_crossplane=0 } \
+		/^frontend:/ { in_frontend=1; in_backend=0; in_crossplane=0 } \
+		/^crossplane:/ { in_crossplane=1; in_backend=0; in_frontend=0 } \
+		/^[a-zA-Z]/ && !/^backend:/ && !/^frontend:/ && !/^crossplane:/ { in_backend=0; in_frontend=0; in_crossplane=0 } \
 		/^    image:/ && (in_backend || in_frontend) { in_image=1 } \
-		/^    [a-zA-Z]/ && !/^    image:/ { in_image=0 } \
-		/^        tag:/ && in_image { print "        tag: \"" ver "\""; next } \
+		/^    package:/ && in_crossplane { in_package=1 } \
+		/^    [a-zA-Z]/ && !/^    image:/ && !/^    package:/ { in_image=0; in_package=0 } \
+		/^        tag:/ && (in_image || in_package) { print "        tag: \"" ver "\""; next } \
 		{ print } \
 	' $(HELM_VALUES) > $(HELM_VALUES).tmp; \
 	mv $(HELM_VALUES).tmp $(HELM_VALUES); \
 	echo "==> Creating git tag v$$NEW_VERSION in portal submodule..."; \
 	git -C portal tag -a "v$$NEW_VERSION" -m "Release version $$NEW_VERSION"; \
+	echo "==> Creating git tag v$$NEW_VERSION in crossplane submodule..."; \
+	git -C crossplane tag -a "v$$NEW_VERSION" -m "Release version $$NEW_VERSION"; \
 	echo "==> Creating git tag v$$NEW_VERSION in backend..."; \
 	git add $(HELM_CHART) $(HELM_VALUES); \
 	git commit -m "chore: bump version to $$NEW_VERSION"; \
@@ -83,9 +87,11 @@ push:
 		git push origin $$LATEST_TAG; \
 		echo "==> Pushing portal tag $$LATEST_TAG..."; \
 		git -C portal push origin $$LATEST_TAG; \
+		echo "==> Pushing crossplane tag $$LATEST_TAG..."; \
+		git -C crossplane push origin $$LATEST_TAG; \
 		echo ""; \
 		echo "✓ Tags pushed successfully!"; \
-		echo "✓ CI/CD pipeline will now build and publish Docker images"; \
+		echo "✓ CI/CD pipelines will now build and publish all components"; \
 	else \
 		echo "Error: No tags found. Run 'make release' first."; \
 		exit 1; \
